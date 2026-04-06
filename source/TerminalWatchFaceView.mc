@@ -234,15 +234,19 @@ class TerminalWatchFaceView extends WatchUi.WatchFace {
     function buildBatteryBar() as String {
         var battery = getBatteryLevel();
         var segments = 10;
-        var filled = (battery * segments) / 100;
+        var filled = (battery + 5) / 10;
         var bar = "[";
         var i = 0;
 
+        if (filled > segments) {
+            filled = segments;
+        }
+
         while (i < segments) {
             if (i < filled) {
-                bar += "#";
+                bar += "=";
             } else {
-                bar += ".";
+                bar += "-";
             }
             i += 1;
         }
