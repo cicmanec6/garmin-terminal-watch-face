@@ -16,6 +16,7 @@ class TerminalWatchFaceView extends WatchUi.WatchFace {
     const COLOR_BATT = 0x75F7CF;
     const COLOR_STEP = 0xD39BFF;
     const COLOR_HR = 0xFFB4B4;
+    var _isLowPower = false;
 
     function initialize() {
         WatchFace.initialize();
@@ -29,9 +30,14 @@ class TerminalWatchFaceView extends WatchUi.WatchFace {
     }
 
     function onUpdate(dc as Dc) as Void {
+        if (_isLowPower) {
+            drawLowPowerLayout(dc);
+            return;
+        }
+
         var font = Graphics.FONT_TINY;
-        var promptTop = "user@watch:~ $ now";
-        var promptBottom = "user@watch:~ $";
+        var promptTop = "jakub@garmin:~ $ now";
+        var promptBottom = "jakub@garmin:~ $";
         var labelTime = "[TIME]";
         var labelDate = "[DATE]";
         var labelBatt = "[BATT]";
@@ -63,10 +69,41 @@ class TerminalWatchFaceView extends WatchUi.WatchFace {
         drawSingleColorLine(dc, blockX, startY, font, promptTop, COLOR_TEXT);
         drawLinePair(dc, blockX, valueX, startY + lineHeight, font, labelTime, COLOR_TEXT, timeText, COLOR_TIME);
         drawLinePair(dc, blockX, valueX, startY + (lineHeight * 2), font, labelDate, COLOR_TEXT, dateText, COLOR_TIME);
-        drawLineTriple(dc, blockX, valueX, startY + (lineHeight * 3), font, labelBatt, COLOR_TEXT, batteryBar, COLOR_BATT, " " + batteryText, COLOR_TEXT);
+        drawLineTriple(dc, blockX, valueX, startY + (lineHeight * 3), font, labelBatt, COLOR_TEXT, batteryBar, COLOR_BATT, " " + batteryText, COLOR_BATT);
         drawLinePair(dc, blockX, valueX, startY + (lineHeight * 4), font, labelStep, COLOR_TEXT, stepText, COLOR_STEP);
         drawLinePair(dc, blockX, valueX, startY + (lineHeight * 5), font, labelHeart, COLOR_TEXT, heartRateText, COLOR_HR);
         drawSingleColorLine(dc, blockX, startY + (lineHeight * 6), font, promptBottom, COLOR_TEXT);
+    }
+
+    function drawLowPowerLayout(dc as Dc) as Void {
+        var font = Graphics.FONT_SMALL;
+        var promptTop = "jakub@garmin:~ $ now";
+        var promptBottom = "jakub@garmin:~ $";
+        var labelTime = "[TIME]";
+        var labelDate = "[DATE]";
+        var timeText = buildSleepTimeText();
+        var dateText = buildDateText();
+
+        dc.setColor(COLOR_TEXT, COLOR_BG);
+        dc.clear();
+
+        var maxWidth = measureContentWidth(dc, font, promptTop, promptBottom, labelTime, labelDate, "", "", "", timeText, dateText, "", "", "", "");
+        if (maxWidth > (dc.getWidth() - 84)) {
+            font = Graphics.FONT_TINY;
+            maxWidth = measureContentWidth(dc, font, promptTop, promptBottom, labelTime, labelDate, "", "", "", timeText, dateText, "", "", "", "");
+        }
+
+        var labelWidth = measureLabelColumnWidth(dc, font, labelTime, labelDate, "", "", "");
+        var valueX = ((dc.getWidth() - maxWidth) / 2) + labelWidth + 8;
+        var lineHeight = dc.getFontHeight(font) + 10;
+        var totalHeight = lineHeight * 4;
+        var blockX = (dc.getWidth() - maxWidth) / 2;
+        var startY = (dc.getHeight() - totalHeight) / 2;
+
+        drawSingleColorLine(dc, blockX, startY, font, promptTop, COLOR_TEXT);
+        drawLinePair(dc, blockX, valueX, startY + lineHeight, font, labelTime, COLOR_TEXT, timeText, COLOR_TIME);
+        drawLinePair(dc, blockX, valueX, startY + (lineHeight * 2), font, labelDate, COLOR_TEXT, dateText, COLOR_TIME);
+        drawSingleColorLine(dc, blockX, startY + (lineHeight * 3), font, promptBottom, COLOR_TEXT);
     }
 
     function measureContentWidth(dc as Dc, font as Graphics.FontType, promptTop as String, promptBottom as String, labelTime as String, labelDate as String, labelBatt as String, labelStep as String, labelHeart as String, timeText as String, dateText as String, batteryBar as String, batteryText as String, stepText as String, heartRateText as String) as Number {
@@ -74,7 +111,7 @@ class TerminalWatchFaceView extends WatchUi.WatchFace {
         var labelWidth = measureLabelColumnWidth(dc, font, labelTime, labelDate, labelBatt, labelStep, labelHeart);
         var valueWidth = measureValueColumnWidth(dc, font, timeText, dateText, batteryBar, batteryText, stepText, heartRateText);
 
-        maxWidth = maxValue(maxWidth, promptBottomWidth(dc, font, promptBottom));
+        maxWidth = maxValue(maxWidth, dc.getTextWidthInPixels(promptBottom, font));
         maxWidth = maxValue(maxWidth, labelWidth + 8 + valueWidth);
         return maxWidth;
     }
@@ -97,17 +134,15 @@ class TerminalWatchFaceView extends WatchUi.WatchFace {
         return valueWidth;
     }
 
-    function promptBottomWidth(dc as Dc, font as Graphics.FontType, promptBottom as String) as Number {
-        return dc.getTextWidthInPixels(promptBottom, font);
-    }
-
     function onHide() as Void {
     }
 
     function onExitSleep() as Void {
+        _isLowPower = false;
     }
 
     function onEnterSleep() as Void {
+        _isLowPower = true;
     }
 
     function drawSingleColorLine(dc as Dc, x as Number, y as Number, font as Graphics.FontType, text as String, color as Number) as Void {
@@ -163,27 +198,49 @@ class TerminalWatchFaceView extends WatchUi.WatchFace {
         return timeText + suffix;
     }
 
+    function buildSleepTimeText() as String {
+        var clockTime = System.getClockTime();
+        var useMilitaryFormat = getApp().getProperty("UseMilitaryFormat");
+        var hour = clockTime.hour;
+        var suffix = "";
+
+        if (!(useMilitaryFormat == true)) {
+            suffix = " AM";
+
+            if (hour >= 12) {
+                suffix = " PM";
+            }
+
+            hour = hour % 12;
+            if (hour == 0) {
+                hour = 12;
+            }
+        }
+
+        return hour.format("%d") + ":" + clockTime.min.format("%02d") + suffix;
+    }
+
     function buildDateText() as String {
         var today = Gregorian.info(Time.now(), Time.FORMAT_MEDIUM);
         return today.day_of_week
+            + ", "
+            + today.day.format("%02d")
             + " "
             + today.month
-            + " "
-            + today.day.format("%02d")
             + " "
             + today.year.format("%04d");
     }
 
     function buildBatteryBar() as String {
         var battery = getBatteryLevel();
-        var segments = 8;
+        var segments = 10;
         var filled = (battery * segments) / 100;
         var bar = "[";
         var i = 0;
 
         while (i < segments) {
             if (i < filled) {
-                bar += "=";
+                bar += "#";
             } else {
                 bar += ".";
             }
