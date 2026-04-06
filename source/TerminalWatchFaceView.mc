@@ -10,12 +10,6 @@ import Toybox.WatchUi;
 
 class TerminalWatchFaceView extends WatchUi.WatchFace {
 
-    const COLOR_BG = 0x000000;
-    const COLOR_TEXT = 0xF4F7FB;
-    const COLOR_TIME = 0x9BE7FF;
-    const COLOR_BATT = 0x75F7CF;
-    const COLOR_STEP = 0xD39BFF;
-    const COLOR_HR = 0xFFB4B4;
     var _isLowPower = false;
 
     function initialize() {
@@ -35,6 +29,7 @@ class TerminalWatchFaceView extends WatchUi.WatchFace {
             return;
         }
 
+        var clockTime = System.getClockTime();
         var font = Graphics.FONT_TINY;
         var promptTop = "jakub@garmin:~ $ now";
         var promptBottom = "jakub@garmin:~ $";
@@ -43,20 +38,30 @@ class TerminalWatchFaceView extends WatchUi.WatchFace {
         var labelBatt = "[BATT]";
         var labelStep = "[STEP]";
         var labelHeart = "[L_HR]";
-        var timeText = buildTimeText();
+        var timeText = buildTimeText(clockTime);
         var dateText = buildDateText();
         var batteryBar = buildBatteryBar();
         var batteryText = buildBatteryText();
         var stepText = buildStepText();
         var heartRateText = buildHeartRateText();
+        var theme = getThemePreset();
+        var bgColor = getThemeBackgroundColor(theme);
+        var textColor = getThemeTextColor(theme);
+        var timeColor = getThemeTimeColor(theme);
+        var batteryColor = getThemeBatteryColor(theme);
+        var stepColor = getThemeStepColor(theme);
+        var heartRateColor = getThemeHeartRateColor(theme);
+        var cursorColor = getCursorColor();
 
-        dc.setColor(COLOR_TEXT, COLOR_BG);
+        dc.setColor(textColor, bgColor);
         dc.clear();
 
         var maxWidth = measureContentWidth(dc, font, promptTop, promptBottom, labelTime, labelDate, labelBatt, labelStep, labelHeart, timeText, dateText, batteryBar, batteryText, stepText, heartRateText);
+        maxWidth = maxValue(maxWidth, measurePromptWithCursorWidth(dc, font, promptBottom));
         if (maxWidth > (dc.getWidth() - 96)) {
             font = Graphics.FONT_XTINY;
             maxWidth = measureContentWidth(dc, font, promptTop, promptBottom, labelTime, labelDate, labelBatt, labelStep, labelHeart, timeText, dateText, batteryBar, batteryText, stepText, heartRateText);
+            maxWidth = maxValue(maxWidth, measurePromptWithCursorWidth(dc, font, promptBottom));
         }
 
         var labelWidth = measureLabelColumnWidth(dc, font, labelTime, labelDate, labelBatt, labelStep, labelHeart);
@@ -66,13 +71,13 @@ class TerminalWatchFaceView extends WatchUi.WatchFace {
         var blockX = (dc.getWidth() - maxWidth) / 2;
         var startY = (dc.getHeight() - totalHeight) / 2;
 
-        drawSingleColorLine(dc, blockX, startY, font, promptTop, COLOR_TEXT);
-        drawLinePair(dc, blockX, valueX, startY + lineHeight, font, labelTime, COLOR_TEXT, timeText, COLOR_TIME);
-        drawLinePair(dc, blockX, valueX, startY + (lineHeight * 2), font, labelDate, COLOR_TEXT, dateText, COLOR_TIME);
-        drawLineTriple(dc, blockX, valueX, startY + (lineHeight * 3), font, labelBatt, COLOR_TEXT, batteryBar, COLOR_BATT, " " + batteryText, COLOR_BATT);
-        drawLinePair(dc, blockX, valueX, startY + (lineHeight * 4), font, labelStep, COLOR_TEXT, stepText, COLOR_STEP);
-        drawLinePair(dc, blockX, valueX, startY + (lineHeight * 5), font, labelHeart, COLOR_TEXT, heartRateText, COLOR_HR);
-        drawSingleColorLine(dc, blockX, startY + (lineHeight * 6), font, promptBottom, COLOR_TEXT);
+        drawSingleColorLine(dc, blockX, startY, font, promptTop, textColor, bgColor);
+        drawLinePair(dc, blockX, valueX, startY + lineHeight, font, labelTime, textColor, timeText, timeColor, bgColor);
+        drawLinePair(dc, blockX, valueX, startY + (lineHeight * 2), font, labelDate, textColor, dateText, timeColor, bgColor);
+        drawLineTriple(dc, blockX, valueX, startY + (lineHeight * 3), font, labelBatt, textColor, batteryBar, batteryColor, " " + batteryText, batteryColor, bgColor);
+        drawLinePair(dc, blockX, valueX, startY + (lineHeight * 4), font, labelStep, textColor, stepText, stepColor, bgColor);
+        drawLinePair(dc, blockX, valueX, startY + (lineHeight * 5), font, labelHeart, textColor, heartRateText, heartRateColor, bgColor);
+        drawPromptWithCursor(dc, blockX, startY + (lineHeight * 6), font, promptBottom, textColor, cursorColor, bgColor);
     }
 
     function drawLowPowerLayout(dc as Dc) as Void {
@@ -83,8 +88,12 @@ class TerminalWatchFaceView extends WatchUi.WatchFace {
         var labelDate = "[DATE]";
         var timeText = buildSleepTimeText();
         var dateText = buildDateText();
+        var theme = getThemePreset();
+        var bgColor = getThemeBackgroundColor(theme);
+        var textColor = getThemeTextColor(theme);
+        var timeColor = getThemeTimeColor(theme);
 
-        dc.setColor(COLOR_TEXT, COLOR_BG);
+        dc.setColor(textColor, bgColor);
         dc.clear();
 
         var maxWidth = measureContentWidth(dc, font, promptTop, promptBottom, labelTime, labelDate, "", "", "", timeText, dateText, "", "", "", "");
@@ -100,10 +109,10 @@ class TerminalWatchFaceView extends WatchUi.WatchFace {
         var blockX = (dc.getWidth() - maxWidth) / 2;
         var startY = (dc.getHeight() - totalHeight) / 2;
 
-        drawSingleColorLine(dc, blockX, startY, font, promptTop, COLOR_TEXT);
-        drawLinePair(dc, blockX, valueX, startY + lineHeight, font, labelTime, COLOR_TEXT, timeText, COLOR_TIME);
-        drawLinePair(dc, blockX, valueX, startY + (lineHeight * 2), font, labelDate, COLOR_TEXT, dateText, COLOR_TIME);
-        drawSingleColorLine(dc, blockX, startY + (lineHeight * 3), font, promptBottom, COLOR_TEXT);
+        drawSingleColorLine(dc, blockX, startY, font, promptTop, textColor, bgColor);
+        drawLinePair(dc, blockX, valueX, startY + lineHeight, font, labelTime, textColor, timeText, timeColor, bgColor);
+        drawLinePair(dc, blockX, valueX, startY + (lineHeight * 2), font, labelDate, textColor, dateText, timeColor, bgColor);
+        drawSingleColorLine(dc, blockX, startY + (lineHeight * 3), font, promptBottom, textColor, bgColor);
     }
 
     function measureContentWidth(dc as Dc, font as Graphics.FontType, promptTop as String, promptBottom as String, labelTime as String, labelDate as String, labelBatt as String, labelStep as String, labelHeart as String, timeText as String, dateText as String, batteryBar as String, batteryText as String, stepText as String, heartRateText as String) as Number {
@@ -134,6 +143,11 @@ class TerminalWatchFaceView extends WatchUi.WatchFace {
         return valueWidth;
     }
 
+    function measurePromptWithCursorWidth(dc as Dc, font as Graphics.FontType, prompt as String) as Number {
+        var width = dc.getTextWidthInPixels(prompt, font);
+        return width + getCursorWidth() + 3;
+    }
+
     function onHide() as Void {
     }
 
@@ -145,35 +159,119 @@ class TerminalWatchFaceView extends WatchUi.WatchFace {
         _isLowPower = true;
     }
 
-    function drawSingleColorLine(dc as Dc, x as Number, y as Number, font as Graphics.FontType, text as String, color as Number) as Void {
-        dc.setColor(color, COLOR_BG);
+    function drawSingleColorLine(dc as Dc, x as Number, y as Number, font as Graphics.FontType, text as String, color as Number, background as Number) as Void {
+        dc.setColor(color, background);
         dc.drawText(x, y, font, text, Graphics.TEXT_JUSTIFY_LEFT);
     }
 
-    function drawLinePair(dc as Dc, x as Number, valueX as Number, y as Number, font as Graphics.FontType, label as String, labelColor as Number, value as String, valueColor as Number) as Void {
-        dc.setColor(labelColor, COLOR_BG);
+    function drawPromptWithCursor(dc as Dc, x as Number, y as Number, font as Graphics.FontType, text as String, color as Number, cursorColor as Number, background as Number) as Void {
+        drawSingleColorLine(dc, x, y, font, text, color, background);
+
+        var textWidth = dc.getTextWidthInPixels(text, font);
+        var cursorX = x + textWidth + 3;
+        var cursorY = y + 2;
+        var cursorWidth = getCursorWidth();
+        var cursorHeight = dc.getFontHeight(font) - 4;
+
+        dc.setColor(cursorColor, background);
+        dc.fillRectangle(cursorX, cursorY, cursorWidth, cursorHeight);
+    }
+
+    function drawLinePair(dc as Dc, x as Number, valueX as Number, y as Number, font as Graphics.FontType, label as String, labelColor as Number, value as String, valueColor as Number, background as Number) as Void {
+        dc.setColor(labelColor, background);
         dc.drawText(x, y, font, label, Graphics.TEXT_JUSTIFY_LEFT);
 
-        dc.setColor(valueColor, COLOR_BG);
+        dc.setColor(valueColor, background);
         dc.drawText(valueX, y, font, value, Graphics.TEXT_JUSTIFY_LEFT);
     }
 
-    function drawLineTriple(dc as Dc, x as Number, valueX as Number, y as Number, font as Graphics.FontType, leftText as String, leftColor as Number, middleText as String, middleColor as Number, rightText as String, rightColor as Number) as Void {
-        dc.setColor(leftColor, COLOR_BG);
+    function drawLineTriple(dc as Dc, x as Number, valueX as Number, y as Number, font as Graphics.FontType, leftText as String, leftColor as Number, middleText as String, middleColor as Number, rightText as String, rightColor as Number, background as Number) as Void {
+        dc.setColor(leftColor, background);
         dc.drawText(x, y, font, leftText, Graphics.TEXT_JUSTIFY_LEFT);
 
-        dc.setColor(middleColor, COLOR_BG);
+        dc.setColor(middleColor, background);
         dc.drawText(valueX, y, font, middleText, Graphics.TEXT_JUSTIFY_LEFT);
 
         var middleWidth = dc.getTextWidthInPixels(middleText, font);
-        dc.setColor(rightColor, COLOR_BG);
+        dc.setColor(rightColor, background);
         dc.drawText(valueX + middleWidth, y, font, rightText, Graphics.TEXT_JUSTIFY_LEFT);
     }
 
-    function buildTimeText() as String {
-        var clockTime = System.getClockTime();
+    function getThemePreset() as Number {
+        var themePreset = getApp().getProperty("ThemePreset");
+        if (themePreset != null) {
+            return themePreset as Number;
+        }
+
+        return 0;
+    }
+
+    function getThemeBackgroundColor(theme as Number) as Number {
+        return 0x000000;
+    }
+
+    function getThemeTextColor(theme as Number) as Number {
+        if (theme == 1) {
+            return 0xCFEFD1;
+        } else if (theme == 2) {
+            return 0xF2E4C7;
+        }
+
+        return 0xE6EDF3;
+    }
+
+    function getThemeTimeColor(theme as Number) as Number {
+        if (theme == 1) {
+            return 0x72FF84;
+        } else if (theme == 2) {
+            return 0xFFBE55;
+        }
+
+        return 0x7DDFFF;
+    }
+
+    function getThemeBatteryColor(theme as Number) as Number {
+        if (theme == 1) {
+            return 0xB9FF4D;
+        } else if (theme == 2) {
+            return 0xFFD84D;
+        }
+
+        return 0x46F0C6;
+    }
+
+    function getThemeStepColor(theme as Number) as Number {
+        if (theme == 1) {
+            return 0xF6C56B;
+        } else if (theme == 2) {
+            return 0xFFBC8A;
+        }
+
+        return 0xC38BFF;
+    }
+
+    function getThemeHeartRateColor(theme as Number) as Number {
+        if (theme == 1) {
+            return 0xFF7272;
+        } else if (theme == 2) {
+            return 0xFF8A68;
+        }
+
+        return 0xFF8F8F;
+    }
+
+    function getCursorColor() as Number {
+        return Graphics.createColor(128, 235, 235, 235);
+    }
+
+    function buildTimeText(clockTime) as String {
+        var currentTime = clockTime;
+        if (currentTime == null) {
+            currentTime = System.getClockTime();
+        }
+
         var useMilitaryFormat = getApp().getProperty("UseMilitaryFormat");
-        var hour = clockTime.hour;
+        var hour = currentTime.hour;
         var suffix = "";
 
         if (!(useMilitaryFormat == true)) {
@@ -191,9 +289,9 @@ class TerminalWatchFaceView extends WatchUi.WatchFace {
 
         var timeText = hour.format("%d")
             + ":"
-            + clockTime.min.format("%02d")
+            + currentTime.min.format("%02d")
             + ":"
-            + clockTime.sec.format("%02d");
+            + currentTime.sec.format("%02d");
 
         return timeText + suffix;
     }
@@ -218,6 +316,10 @@ class TerminalWatchFaceView extends WatchUi.WatchFace {
         }
 
         return hour.format("%d") + ":" + clockTime.min.format("%02d") + suffix;
+    }
+
+    function getCursorWidth() as Number {
+        return 8;
     }
 
     function buildDateText() as String {
